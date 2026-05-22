@@ -7,6 +7,9 @@ let package = Package(
     products: [
         .library(
             name: "CapacitorUsbSerial",
+            targets: ["UsbSerialPlugin"]),
+        .library(
+            name: "EugabrielsilvaCapacitorUsbSerial",
             targets: ["UsbSerialPlugin"])
     ],
     dependencies: [
