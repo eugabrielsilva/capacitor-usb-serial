@@ -2,7 +2,20 @@ import Foundation
 import Capacitor
 
 @objc(UsbSerialPlugin)
-public class UsbSerialPlugin: CAPPlugin {
+public class UsbSerialPlugin: CAPPlugin, CAPBridgedPlugin {
+
+    public let identifier = "UsbSerialPlugin"
+    public let jsName = "UsbSerial"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "requestPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listDevices", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "connect", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "disconnect", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "write", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "read", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopListening", returnType: CAPPluginReturnPromise)
+    ]
     
     private var implementation: UsbSerial?
     

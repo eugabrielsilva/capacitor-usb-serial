@@ -23,6 +23,8 @@ public class UsbSerial: NSObject {
     init(plugin: CAPPlugin) {
         self.plugin = plugin
         super.init()
+
+        EAAccessoryManager.shared().registerForLocalNotifications()
         
         // Register for accessory notifications
         NotificationCenter.default.addObserver(
@@ -42,6 +44,7 @@ public class UsbSerial: NSObject {
     
     func cleanup() {
         disconnect()
+        EAAccessoryManager.shared().unregisterForLocalNotifications()
         NotificationCenter.default.removeObserver(self)
     }
     
@@ -68,6 +71,8 @@ public class UsbSerial: NSObject {
         for accessory in accessories {
             let device: [String: Any] = [
                 "deviceId": accessory.connectionID,
+                "vendorId": 0,
+                "productId": 0,
                 "deviceName": accessory.name,
                 "manufacturerName": accessory.manufacturer,
                 "serialNumber": accessory.serialNumber,
@@ -100,6 +105,9 @@ public class UsbSerial: NSObject {
         for accessory in accessories {
             if accessory.connectionID == deviceId {
                 self.accessory = accessory
+
+                let serialOptions = call.getObject("serialOptions") ?? [:]
+                let requestedProtocol = serialOptions["protocol"] as? String
                 
                 // Find a compatible protocol
                 var foundProtocol: String?
@@ -111,7 +119,7 @@ public class UsbSerial: NSObject {
                 }
                 
                 // Use the found protocol or the default one
-                let protocolToUse = foundProtocol ?? protocolString
+                let protocolToUse = requestedProtocol ?? foundProtocol ?? protocolString
                 
                 if accessory.protocolStrings.contains(protocolToUse) {
                     session = EASession(accessory: accessory, forProtocol: protocolToUse)
@@ -143,9 +151,14 @@ public class UsbSerial: NSObject {
         let host = serialOptions["host"] as? String ?? "192.168.1.100"
         let port = serialOptions["port"] as? Int ?? 23  // Default telnet port
         
+        guard let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) else {
+            call.reject("Invalid port: \(port)")
+            return
+        }
+
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(host),
-            port: NWEndpoint.Port(rawValue: UInt16(port))!
+            port: nwPort
         )
         
         connection = NWConnection(to: endpoint, using: .tcp)
@@ -153,31 +166,37 @@ public class UsbSerial: NSObject {
         connection?.stateUpdateHandler = { [weak self] state in
             switch state {
             case .ready:
-                call.resolve([
-                    "connected": true,
-                    "deviceId": 0,
-                    "type": "network"
-                ])
-                
-                self?.plugin?.notifyListeners("connectionStateChanged", data: [
-                    "connected": true,
-                    "deviceId": 0,
-                    "type": "network"
-                ])
-                
+                DispatchQueue.main.async {
+                    call.resolve([
+                        "connected": true,
+                        "deviceId": 0,
+                        "type": "network"
+                    ])
+
+                    self?.plugin?.notifyListeners("connectionStateChanged", data: [
+                        "connected": true,
+                        "deviceId": 0,
+                        "type": "network"
+                    ])
+                }
+
                 self?.startReceivingNetworkData()
                 
             case .failed(let error):
-                call.reject("Network connection failed: \(error.localizedDescription)")
-                
-                self?.plugin?.notifyListeners("error", data: [
-                    "message": "Network connection failed: \(error.localizedDescription)"
-                ])
+                DispatchQueue.main.async {
+                    call.reject("Network connection failed: \(error.localizedDescription)")
+
+                    self?.plugin?.notifyListeners("error", data: [
+                        "message": "Network connection failed: \(error.localizedDescription)"
+                    ])
+                }
                 
             case .cancelled:
-                self?.plugin?.notifyListeners("connectionStateChanged", data: [
-                    "connected": false
-                ])
+                DispatchQueue.main.async {
+                    self?.plugin?.notifyListeners("connectionStateChanged", data: [
+                        "connected": false
+                    ])
+                }
                 
             default:
                 break
@@ -200,8 +219,8 @@ public class UsbSerial: NSObject {
             session.inputStream?.close()
             session.outputStream?.close()
             
-            session.inputStream?.remove(from: .current, forMode: .default)
-            session.outputStream?.remove(from: .current, forMode: .default)
+            session.inputStream?.remove(from: .main, forMode: .default)
+            session.outputStream?.remove(from: .main, forMode: .default)
             
             session.inputStream?.delegate = nil
             session.outputStream?.delegate = nil
@@ -286,8 +305,8 @@ public class UsbSerial: NSObject {
         session.inputStream?.delegate = self
         session.outputStream?.delegate = self
         
-        session.inputStream?.schedule(in: .current, forMode: .default)
-        session.outputStream?.schedule(in: .current, forMode: .default)
+        session.inputStream?.schedule(in: .main, forMode: .default)
+        session.outputStream?.schedule(in: .main, forMode: .default)
         
         session.inputStream?.open()
         session.outputStream?.open()
@@ -396,6 +415,11 @@ extension UsbSerial: StreamDelegate {
             if bytesRead > 0 {
                 let data = Data(bytes: buffer, count: bytesRead)
                 handleReceivedData(data)
+            } else if bytesRead < 0 {
+                plugin?.notifyListeners("error", data: [
+                    "message": inputStream.streamError?.localizedDescription ?? "Stream read error"
+                ])
+                break
             }
         }
     }

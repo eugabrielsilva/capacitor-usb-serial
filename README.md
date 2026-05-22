@@ -66,14 +66,14 @@ List all connected USB devices
 ### connect(...)
 
 ```typescript
-connect(options: { deviceId: number; serialOptions?: UsbSerialOptions; }) => Promise<{ connected: boolean; }>
+connect(options: { deviceId?: number; serialOptions?: UsbSerialOptions; }) => Promise<{ connected: boolean; }>
 ```
 
 Connect to a USB device
 
-| Param         | Type                                                                                                 |
-| ------------- | ---------------------------------------------------------------------------------------------------- |
-| **`options`** | <code>{ deviceId: number; serialOptions?: <a href="#usbserialoptions">UsbSerialOptions</a>; }</code> |
+| Param         | Type                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| **`options`** | <code>{ deviceId?: number; serialOptions?: <a href="#usbserialoptions">UsbSerialOptions</a>; }</code> |
 
 **Returns:** <code>Promise&lt;{ connected: boolean; }&gt;</code>
 
@@ -260,6 +260,9 @@ Add listener for error events
 | **`parity`**   | <code>'none' \| 'odd' \| 'even' \| 'mark' \| 'space'</code> |
 | **`dtr`**      | <code>boolean</code>                                        |
 | **`rts`**      | <code>boolean</code>                                        |
+| **`protocol`** | <code>string</code>                                         |
+| **`host`**     | <code>string</code>                                         |
+| **`port`**     | <code>number</code>                                         |
 
 
 #### DataReceivedEvent

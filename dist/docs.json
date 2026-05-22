@@ -35,12 +35,12 @@
       },
       {
         "name": "connect",
-        "signature": "(options: { deviceId: number; serialOptions?: UsbSerialOptions; }) => Promise<{ connected: boolean; }>",
+        "signature": "(options: { deviceId?: number; serialOptions?: UsbSerialOptions; }) => Promise<{ connected: boolean; }>",
         "parameters": [
           {
             "name": "options",
             "docs": "",
-            "type": "{ deviceId: number; serialOptions?: UsbSerialOptions | undefined; }"
+            "type": "{ deviceId?: number | undefined; serialOptions?: UsbSerialOptions | undefined; }"
           }
         ],
         "returns": "Promise<{ connected: boolean; }>",
@@ -323,6 +323,27 @@
           "docs": "",
           "complexTypes": [],
           "type": "boolean | undefined"
+        },
+        {
+          "name": "protocol",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "host",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "string | undefined"
+        },
+        {
+          "name": "port",
+          "tags": [],
+          "docs": "",
+          "complexTypes": [],
+          "type": "number | undefined"
         }
       ]
     },

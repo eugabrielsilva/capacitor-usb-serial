@@ -13,6 +13,9 @@ export interface UsbSerialOptions {
     parity?: 'none' | 'odd' | 'even' | 'mark' | 'space';
     dtr?: boolean;
     rts?: boolean;
+    protocol?: string;
+    host?: string;
+    port?: number;
 }
 export interface DataReceivedEvent {
     data: string;
@@ -53,7 +56,7 @@ export interface UsbSerialPlugin {
      * Connect to a USB device
      */
     connect(options: {
-        deviceId: number;
+        deviceId?: number;
         serialOptions?: UsbSerialOptions;
     }): Promise<{
         connected: boolean;
