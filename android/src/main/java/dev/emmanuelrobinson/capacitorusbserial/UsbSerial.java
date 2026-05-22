@@ -26,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class UsbSerial implements SerialInputOutputManager.Listener {
     private static final String TAG = "UsbSerial";
@@ -37,6 +39,7 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
     private UsbSerialPort serialPort;
     private SerialInputOutputManager ioManager;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final LinkedBlockingQueue<String> readQueue = new LinkedBlockingQueue<>();
     private UsbDevice currentDevice;
     
     private PluginCall pendingPermissionCall = null;
@@ -286,10 +289,6 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
     
     public void connect(PluginCall call) {
         Integer deviceId = call.getInt("deviceId");
-        if (deviceId == null) {
-            call.reject("Device ID is required");
-            return;
-        }
         
         JSObject serialOptions = call.getObject("serialOptions", new JSObject());
         int baudRate = serialOptions.getInteger("baudRate", 115200);
@@ -306,11 +305,16 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
         }
         
         UsbDevice device = null;
-        for (UsbDevice d : usbManager.getDeviceList().values()) {
-            if (d.getDeviceId() == deviceId) {
-                device = d;
-                break;
+        if (deviceId != null) {
+            for (UsbDevice d : usbManager.getDeviceList().values()) {
+                if (d.getDeviceId() == deviceId) {
+                    device = d;
+                    break;
+                }
             }
+        } else if (!usbManager.getDeviceList().isEmpty()) {
+            device = usbManager.getDeviceList().values().iterator().next();
+            deviceId = device.getDeviceId();
         }
         
         if (device == null) {
@@ -389,6 +393,7 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
             serialPort = null;
         }
         
+        readQueue.clear();
         currentDevice = null;
     }
     
@@ -418,6 +423,29 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
             call.reject("Write failed: " + e.getMessage());
         }
     }
+
+    public void read(PluginCall call) {
+        if (serialPort == null) {
+            call.reject("Not connected");
+            return;
+        }
+
+        Integer timeoutMs = call.getInt("timeout", 2000);
+        try {
+            String data = readQueue.poll(timeoutMs, TimeUnit.MILLISECONDS);
+            if (data == null) {
+                call.reject("Read timeout");
+                return;
+            }
+
+            JSObject ret = new JSObject();
+            ret.put("data", data);
+            call.resolve(ret);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            call.reject("Read interrupted");
+        }
+    }
     
     public void startListening(PluginCall call) {
         if (serialPort == null) {
@@ -435,6 +463,8 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
     public void onNewData(byte[] data) {
         String dataStr = new String(data, StandardCharsets.UTF_8);
         String hexStr = bytesToHex(data);
+
+        readQueue.offer(dataStr);
         
         JSObject event = new JSObject();
         event.put("data", dataStr);

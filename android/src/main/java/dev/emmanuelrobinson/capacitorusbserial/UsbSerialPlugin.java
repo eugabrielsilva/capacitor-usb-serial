@@ -64,6 +64,11 @@ public class UsbSerialPlugin extends Plugin {
     public void write(PluginCall call) {
         implementation.write(call);
     }
+
+    @PluginMethod
+    public void read(PluginCall call) {
+        implementation.read(call);
+    }
     
     @PluginMethod
     public void startListening(PluginCall call) {
