@@ -351,8 +351,9 @@ public class UsbSerial implements SerialInputOutputManager.Listener {
             
             currentDevice = device;
             
-            // Start IO manager
+            // Start IO manager with low read timeout to minimize latency (~2ms for real-time instruments)
             ioManager = new SerialInputOutputManager(serialPort, this);
+            ioManager.setReadTimeout(2);
             ioManager.start();
             
             JSObject ret = new JSObject();
